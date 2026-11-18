@@ -3,46 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>영어 단어 암기 앱</title>
+    <title>영단어 마스터</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app" class="container">
+        <!-- 상단 헤더 -->
         <header>
-            <h1 id="app-title" onclick="router('home')">단어 마스터</h1>
+            <div class="main-icon">📖</div>
+            <h1 id="app-title" onclick="router('home')">영단어 마스터</h1>
+            <p class="subtitle">나만의 단어장으로 빠르고 확실하게 암기하세요!</p>
         </header>
 
-        <!-- 홈 화면 -->
+        <!-- 홈 화면 (카드형 메뉴) -->
         <main id="view-home" class="view active">
-            <div class="menu-buttons">
-                <button onclick="router('test')">📝 테스트 시작</button>
-                <button onclick="router('manage')">⚙️ 단어 관리</button>
-                <button onclick="router('history')">📊 테스트 기록</button>
+            <div class="menu-cards">
+                <div class="card" onclick="router('test')">
+                    <div class="icon-circle icon-blue">▶️</div>
+                    <h3>테스트 시작</h3>
+                    <p>10문제 랜덤 추출<br>실력 점검하기</p>
+                </div>
+                <div class="card" onclick="router('manage')">
+                    <div class="icon-circle icon-green">⚙️</div>
+                    <h3>단어 관리</h3>
+                    <p>나만의 단어 추가<br>및 목록 확인</p>
+                </div>
+                <div class="card" onclick="router('history')">
+                    <div class="icon-circle icon-orange">🕒</div>
+                    <h3>테스트 기록</h3>
+                    <p>과거 테스트 결과<br>및 오답 확인</p>
+                </div>
             </div>
         </main>
 
         <!-- 테스트 화면 -->
-        <main id="view-test" class="view hidden">
+        <main id="view-test" class="view">
             <div class="header-action">
-                <h2>단어 테스트</h2>
+                <h2>📝 단어 테스트</h2>
                 <button onclick="router('home')" class="btn-secondary">홈으로</button>
             </div>
             <div id="test-container" class="test-box hidden">
                 <p id="test-progress"></p>
                 <h3 id="test-word"></h3>
-                <input type="text" id="test-answer" placeholder="한글 뜻을 입력하세요" onkeypress="if(event.key === 'Enter') submitAnswer()">
+                <input type="text" id="test-answer" placeholder="한글 뜻을 입력하세요" onkeypress="if(event.key === 'Enter') submitAnswer()" autocomplete="off">
                 <button onclick="submitAnswer()" class="btn-primary">제출</button>
             </div>
-            <div id="test-empty" class="hidden">
-                <p>저장된 단어가 없습니다. 단어를 먼저 추가해주세요.</p>
+            <div id="test-empty" class="hidden empty-state">
+                <p>저장된 단어가 없습니다.<br>단어 관리에서 단어를 먼저 추가해주세요.</p>
+                <button onclick="router('manage')" class="btn-primary" style="margin-top:15px;">단어 추가하러 가기</button>
             </div>
         </main>
 
         <!-- 테스트 상세 결과 화면 -->
-        <main id="view-result" class="view hidden">
+        <main id="view-result" class="view">
             <div class="header-action">
                 <h2 id="result-title">테스트 결과</h2>
-                <button onclick="router('home')" class="btn-secondary">확인</button>
+                <button onclick="router('home')" class="btn-secondary">홈으로</button>
             </div>
             <div class="result-summary">
                 <p>총 <span id="res-total">0</span>문제 중 <span id="res-correct">0</span>문제 정답 (정답률: <span id="res-rate">0</span>%)</p>
@@ -51,9 +67,9 @@
         </main>
 
         <!-- 단어 관리 화면 -->
-        <main id="view-manage" class="view hidden">
+        <main id="view-manage" class="view">
             <div class="header-action">
-                <h2>단어 관리</h2>
+                <h2>⚙️ 단어 관리</h2>
                 <button onclick="router('home')" class="btn-secondary">홈으로</button>
             </div>
             <div class="manage-controls">
@@ -68,9 +84,9 @@
         </main>
 
         <!-- 테스트 기록 화면 -->
-        <main id="view-history" class="view hidden">
+        <main id="view-history" class="view">
             <div class="header-action">
-                <h2>테스트 기록</h2>
+                <h2>🕒 테스트 기록</h2>
                 <button onclick="router('home')" class="btn-secondary">홈으로</button>
             </div>
             <ul id="history-list" class="list-container"></ul>
@@ -83,11 +99,11 @@
             <h3 id="modal-title">단어 추가</h3>
             <div class="input-group">
                 <label>영어 단어</label>
-                <input type="text" id="modal-en" placeholder="예: apple">
+                <input type="text" id="modal-en" placeholder="예: apple" autocomplete="off">
             </div>
             <div class="input-group">
                 <label>한글 뜻</label>
-                <input type="text" id="modal-ko" placeholder="예: 사과">
+                <input type="text" id="modal-ko" placeholder="예: 사과" autocomplete="off">
             </div>
             <div class="modal-actions">
                 <button onclick="closeWordModal()" class="btn-secondary">취소</button>
@@ -99,8 +115,8 @@
     <!-- 모달: 영어 단어 수정 경고 -->
     <div id="alert-modal" class="modal hidden">
         <div class="modal-content alert-content">
-            <h3>⚠️ 주의</h3>
-            <p>영어 단어가 변경되었습니다.<br>신규 단어로 취급되어 기존 <strong>정답률이 초기화</strong> 됩니다. 계속하시겠습니까?</p>
+            <h3 style="color: var(--danger);">⚠️ 주의</h3>
+            <p>영어 단어가 변경되었습니다.<br>신규 단어로 취급되어 기존 <strong>정답률이 초기화</strong> 됩니다.<br>계속하시겠습니까?</p>
             <div class="modal-actions">
                 <button onclick="cancelAlert()" class="btn-secondary">아니오</button>
                 <button onclick="confirmAlert()" class="btn-danger">예 (초기화)</button>

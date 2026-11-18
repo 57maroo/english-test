@@ -1,22 +1,21 @@
-// 상태 관리 (더미 데이터 없이 localStorage에서만 불러옴)
+// 상태 관리 (localStorage)
 let words = JSON.parse(localStorage.getItem('words')) || [];
 let history = JSON.parse(localStorage.getItem('history')) || [];
 
-// 현재 테스트 상태
 let currentTest = { words: [], currentIndex: 0, answers: [] };
-// 현재 수정 중인 단어 상태
 let editingWordId = null;
-let pendingEditData = null; // 영어단어 변경 경고창 대기 데이터
+let pendingEditData = null;
 
-// 데이터 저장 유틸
 const saveData = () => {
     localStorage.setItem('words', JSON.stringify(words));
     localStorage.setItem('history', JSON.stringify(history));
 };
 
-// 라우터 (화면 전환)
+// ================= 라우터 (버그 수정 완료) =================
 const router = (viewName) => {
+    // 모든 뷰에서 active 클래스 제거
     document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+    // 선택된 뷰에만 active 클래스 추가 (HTML에서 hidden 클래스를 제거하여 충돌 해결)
     document.getElementById(`view-${viewName}`).classList.add('active');
 
     if (viewName === 'manage') renderWordList();
@@ -45,7 +44,7 @@ const renderWordList = () => {
         
         const li = document.createElement('li');
         li.className = 'list-item';
-        li.onclick = (e) => { if(!e.target.classList.contains('delete-btn')) openWordModal(word.id); };
+        li.onclick = (e) => { if(!e.target.closest('.delete-btn')) openWordModal(word.id); };
         
         li.innerHTML = `
             <div class="item-info">
@@ -53,7 +52,7 @@ const renderWordList = () => {
                 <p>${word.ko}</p>
             </div>
             <div class="item-stats">
-                <p class="rate">정답률 ${rate}%</p>
+                <span class="rate">정답률 ${rate}%</span>
                 <button class="delete-btn" onclick="deleteWord('${word.id}', event)">✖</button>
             </div>
         `;
@@ -91,6 +90,7 @@ const openWordModal = (id = null) => {
         koInput.value = '';
     }
     document.getElementById('word-modal').classList.remove('hidden');
+    enInput.focus();
 };
 
 const closeWordModal = () => {
@@ -104,19 +104,15 @@ const saveWord = () => {
     if (!en || !ko) return alert('영어와 한글 뜻을 모두 입력해주세요.');
 
     if (editingWordId) {
-        // 수정 모드
         const oldWord = words.find(w => w.id === editingWordId);
         if (oldWord.en !== en) {
-            // 영단어가 변경된 경우 경고창 출력
             pendingEditData = { en, ko };
             document.getElementById('alert-modal').classList.remove('hidden');
-            return; // 기존 모달 닫지 않고 대기
+            return;
         } else {
-            // 한글 뜻만 변경
             oldWord.ko = ko;
         }
     } else {
-        // 신규 추가
         words.push({ id: Date.now().toString(), en, ko, correct: 0, wrong: 0, createdAt: Date.now() });
     }
     
@@ -129,11 +125,9 @@ const saveWord = () => {
 const cancelAlert = () => {
     document.getElementById('alert-modal').classList.add('hidden');
     pendingEditData = null;
-    // 경고창만 닫고 수정창은 유지됨
 };
 
 const confirmAlert = () => {
-    // 영단어 변경 확정 (정답률 초기화 및 새로 등록 효과)
     const wordIndex = words.findIndex(w => w.id === editingWordId);
     words[wordIndex] = {
         ...words[wordIndex],
@@ -146,7 +140,6 @@ const confirmAlert = () => {
     
     saveData();
     renderWordList();
-    
     document.getElementById('alert-modal').classList.add('hidden');
     closeWordModal();
     pendingEditData = null;
@@ -162,7 +155,6 @@ const initTest = () => {
     document.getElementById('test-container').classList.remove('hidden');
     document.getElementById('test-empty').classList.add('hidden');
 
-    // 단어 섞어서 최대 10개 추출
     let shuffled = [...words].sort(() => 0.5 - Math.random());
     currentTest.words = shuffled.slice(0, 10);
     currentTest.currentIndex = 0;
@@ -201,25 +193,22 @@ const finishTest = () => {
     const correctCount = currentTest.answers.filter(a => a.isCorrect).length;
     const rate = Math.round((correctCount / total) * 100);
 
-    // 단어 DB 통계 업데이트
     currentTest.answers.forEach(ans => {
         const dbWord = words.find(w => w.id === ans.id);
-        if (dbWord) { // 삭제된 상태가 아니라면
+        if (dbWord) { 
             ans.isCorrect ? dbWord.correct++ : dbWord.wrong++;
         }
     });
 
-    // 히스토리 저장
     const historyObj = {
         id: Date.now().toString(),
         date: new Date().toLocaleString('ko-KR'),
         total, correct: correctCount, rate,
         details: currentTest.answers
     };
-    history.unshift(historyObj); // 최신순
+    history.unshift(historyObj);
     saveData();
 
-    // 결과 렌더링
     renderResultView(historyObj);
     router('result');
 };
@@ -230,7 +219,7 @@ const renderHistoryList = () => {
     listEl.innerHTML = '';
     
     if(history.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; padding: 20px;">테스트 기록이 없습니다.</p>';
+        listEl.innerHTML = '<p class="empty-state">아직 테스트 기록이 없습니다.</p>';
         return;
     }
 
@@ -244,7 +233,7 @@ const renderHistoryList = () => {
                 <p>총 ${hist.total}문제 / 정답 ${hist.correct}개</p>
             </div>
             <div class="item-stats">
-                <p class="rate">${hist.rate}%</p>
+                <span class="rate">${hist.rate}%</span>
             </div>
         `;
         listEl.appendChild(li);

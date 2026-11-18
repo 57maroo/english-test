@@ -1,7 +1,8 @@
-// 1. Firebase 초기화 및 설정
+// 1. Firebase 초기화 및 설정 (새로운 설정 반영)
 const firebaseConfig = {
     apiKey: "AIzaSyAZvJPSOZ3PC7aowP9ueB_usCEzd3UxjwE",
     authDomain: "english-test-49e71.firebaseapp.com",
+    databaseURL: "https://english-test-49e71-default-rtdb.firebaseio.com",
     projectId: "english-test-49e71",
     storageBucket: "english-test-49e71.firebasestorage.app",
     messagingSenderId: "605160387541",
@@ -19,7 +20,7 @@ let currentTest = { words: [], currentIndex: 0, answers: [] };
 let editingWordId = null;
 let pendingEditData = null;
 
-// 3. 앱 실행 시 Firebase에서 데이터 불러오기 (초기 1회 실행)
+// 3. 앱 실행 시 Firebase에서 데이터 불러오기
 async function fetchFirebaseData() {
     try {
         // 단어장 가져오기 (오래된 순)

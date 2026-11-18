@@ -15,7 +15,7 @@
             <p class="subtitle">나만의 단어장으로 빠르고 확실하게 암기하세요!</p>
         </header>
 
-        <!-- 홈 화면 (카드형 메뉴) -->
+        <!-- 홈 화면 -->
         <main id="view-home" class="view active">
             <div class="menu-cards">
                 <div class="card" onclick="router('test')">
@@ -58,7 +58,7 @@
         <main id="view-result" class="view">
             <div class="header-action">
                 <h2 id="result-title">테스트 결과</h2>
-                <button onclick="router('home')" class="btn-secondary">홈으로</button>
+                <button onclick="router('home')" class="btn-secondary">확인</button>
             </div>
             <div class="result-summary">
                 <p>총 <span id="res-total">0</span>문제 중 <span id="res-correct">0</span>문제 정답 (정답률: <span id="res-rate">0</span>%)</p>
@@ -93,7 +93,7 @@
         </main>
     </div>
 
-    <!-- 모달: 단어 추가/수정 -->
+    <!-- 모달들 -->
     <div id="word-modal" class="modal hidden">
         <div class="modal-content">
             <h3 id="modal-title">단어 추가</h3>
@@ -112,7 +112,6 @@
         </div>
     </div>
 
-    <!-- 모달: 영어 단어 수정 경고 -->
     <div id="alert-modal" class="modal hidden">
         <div class="modal-content alert-content">
             <h3 style="color: var(--danger);">⚠️ 주의</h3>
@@ -124,6 +123,11 @@
         </div>
     </div>
 
+    <!-- Firebase SDK (Compat 버전) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <!-- 비즈니스 로직 -->
     <script src="script.js"></script>
 </body>
 </html>

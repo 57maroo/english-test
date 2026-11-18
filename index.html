@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영어 단어 암기 앱</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app" class="container">
+        <header>
+            <h1 id="app-title" onclick="router('home')">단어 마스터</h1>
+        </header>
+
+        <!-- 홈 화면 -->
+        <main id="view-home" class="view active">
+            <div class="menu-buttons">
+                <button onclick="router('test')">📝 테스트 시작</button>
+                <button onclick="router('manage')">⚙️ 단어 관리</button>
+                <button onclick="router('history')">📊 테스트 기록</button>
+            </div>
+        </main>
+
+        <!-- 테스트 화면 -->
+        <main id="view-test" class="view hidden">
+            <div class="header-action">
+                <h2>단어 테스트</h2>
+                <button onclick="router('home')" class="btn-secondary">홈으로</button>
+            </div>
+            <div id="test-container" class="test-box hidden">
+                <p id="test-progress"></p>
+                <h3 id="test-word"></h3>
+                <input type="text" id="test-answer" placeholder="한글 뜻을 입력하세요" onkeypress="if(event.key === 'Enter') submitAnswer()">
+                <button onclick="submitAnswer()" class="btn-primary">제출</button>
+            </div>
+            <div id="test-empty" class="hidden">
+                <p>저장된 단어가 없습니다. 단어를 먼저 추가해주세요.</p>
+            </div>
+        </main>
+
+        <!-- 테스트 상세 결과 화면 -->
+        <main id="view-result" class="view hidden">
+            <div class="header-action">
+                <h2 id="result-title">테스트 결과</h2>
+                <button onclick="router('home')" class="btn-secondary">확인</button>
+            </div>
+            <div class="result-summary">
+                <p>총 <span id="res-total">0</span>문제 중 <span id="res-correct">0</span>문제 정답 (정답률: <span id="res-rate">0</span>%)</p>
+            </div>
+            <ul id="result-list" class="list-container"></ul>
+        </main>
+
+        <!-- 단어 관리 화면 -->
+        <main id="view-manage" class="view hidden">
+            <div class="header-action">
+                <h2>단어 관리</h2>
+                <button onclick="router('home')" class="btn-secondary">홈으로</button>
+            </div>
+            <div class="manage-controls">
+                <button onclick="openWordModal()" class="btn-primary">+ 단어 추가</button>
+                <select id="sort-select" onchange="renderWordList()">
+                    <option value="newest">최신순</option>
+                    <option value="alphabet">알파벳순</option>
+                    <option value="accuracy">정답률순</option>
+                </select>
+            </div>
+            <ul id="word-list" class="list-container"></ul>
+        </main>
+
+        <!-- 테스트 기록 화면 -->
+        <main id="view-history" class="view hidden">
+            <div class="header-action">
+                <h2>테스트 기록</h2>
+                <button onclick="router('home')" class="btn-secondary">홈으로</button>
+            </div>
+            <ul id="history-list" class="list-container"></ul>
+        </main>
+    </div>
+
+    <!-- 모달: 단어 추가/수정 -->
+    <div id="word-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="modal-title">단어 추가</h3>
+            <div class="input-group">
+                <label>영어 단어</label>
+                <input type="text" id="modal-en" placeholder="예: apple">
+            </div>
+            <div class="input-group">
+                <label>한글 뜻</label>
+                <input type="text" id="modal-ko" placeholder="예: 사과">
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeWordModal()" class="btn-secondary">취소</button>
+                <button onclick="saveWord()" id="modal-save-btn" class="btn-primary">추가</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달: 영어 단어 수정 경고 -->
+    <div id="alert-modal" class="modal hidden">
+        <div class="modal-content alert-content">
+            <h3>⚠️ 주의</h3>
+            <p>영어 단어가 변경되었습니다.<br>신규 단어로 취급되어 기존 <strong>정답률이 초기화</strong> 됩니다. 계속하시겠습니까?</p>
+            <div class="modal-actions">
+                <button onclick="cancelAlert()" class="btn-secondary">아니오</button>
+                <button onclick="confirmAlert()" class="btn-danger">예 (초기화)</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

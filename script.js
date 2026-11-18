@@ -1,4 +1,4 @@
-// 1. Firebase 초기화 및 설정
+// 1. Firebase 초기화 및 설정 (제공해주신 URL 포함)
 const firebaseConfig = {
     apiKey: "AIzaSyAZvJPSOZ3PC7aowP9ueB_usCEzd3UxjwE",
     authDomain: "english-test-49e71.firebaseapp.com",
@@ -9,9 +9,8 @@ const firebaseConfig = {
     appId: "1:605160387541:web:390b947b22dd57737c435c"
 };
 
-// Firebase 앱 및 Firestore DB 객체 생성
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = firebase.database(); // Realtime Database 객체
 
 // 2. 전역 상태 관리
 let words = [];
@@ -20,21 +19,26 @@ let currentTest = { words: [], currentIndex: 0, answers: [] };
 let editingWordId = null;
 let pendingEditData = null;
 
-// 3. 앱 실행 시 Firebase에서 데이터 불러오기
+// 3. 앱 실행 시 Firebase에서 데이터 불러오기 (RTDB 방식)
 async function fetchFirebaseData() {
     try {
-        // 단어장 가져오기 (오래된 순)
-        const wordSnap = await db.collection('words').orderBy('createdAt', 'asc').get();
-        words = wordSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // 단어 데이터 가져오기
+        const wordSnap = await db.ref('words').once('value');
+        const wordData = wordSnap.val() || {};
+        // 고유 Key를 id 속성으로 변환하여 배열로 만듦
+        words = Object.keys(wordData).map(key => ({ id: key, ...wordData[key] }));
 
-        // 테스트 기록 가져오기 (최신 순)
-        const historySnap = await db.collection('history').orderBy('createdAt', 'desc').get();
-        history = historySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // 기록 데이터 가져오기
+        const historySnap = await db.ref('history').once('value');
+        const historyData = historySnap.val() || {};
+        history = Object.keys(historyData).map(key => ({ id: key, ...historyData[key] }));
+        
+        // 기록을 최신순(내림차순)으로 로컬에서 정렬
+        history.sort((a, b) => b.createdAt - a.createdAt);
     } catch (error) {
         console.error("데이터 불러오기 실패:", error);
     }
 }
-// 스크립트가 로드되자마자 데이터를 비동기로 불러옴
 fetchFirebaseData();
 
 // ================= 라우터 =================
@@ -58,7 +62,7 @@ const renderWordList = () => {
             const getRate = w => (w.correct + w.wrong) === 0 ? 0 : w.correct / (w.correct + w.wrong);
             return getRate(b) - getRate(a);
         }
-        return b.createdAt - a.createdAt; // newest (descending)
+        return b.createdAt - a.createdAt; // 최신순 정렬
     });
 
     listEl.innerHTML = '';
@@ -88,7 +92,7 @@ const deleteWord = async (id, event) => {
     event.stopPropagation();
     if(confirm('단어를 삭제하시겠습니까?')) {
         try {
-            await db.collection('words').doc(id).delete();
+            await db.ref(`words/${id}`).remove(); // RTDB 삭제 방식
             words = words.filter(w => w.id !== id);
             renderWordList();
         } catch (error) {
@@ -119,7 +123,7 @@ const openWordModal = (id = null) => {
         koInput.value = '';
     }
     
-    // 혹시 잠겨있을 수 있는 필드 활성화 초기화
+    // 모달을 열 때마다 잠금 상태 해제 보장
     enInput.disabled = false;
     koInput.disabled = false;
     saveBtn.disabled = false;
@@ -142,7 +146,7 @@ const saveWord = async () => {
     
     if (!en || !ko) return alert('영어와 한글 뜻을 모두 입력해주세요.');
     
-    // 1. 중복 클릭 방지: 필드 및 버튼 잠금
+    // 버튼 및 필드 잠금 (이전 버그 해결 코드 적용)
     enInput.disabled = true; 
     koInput.disabled = true;
     saveBtn.disabled = true;
@@ -151,30 +155,32 @@ const saveWord = async () => {
         if (editingWordId) {
             const oldWord = words.find(w => w.id === editingWordId);
             if (oldWord.en !== en) {
-                // 영단어 변경: 경고창 출력 (finally 블록에서 잠금이 해제됨)
+                // 영어 단어 변경됨: 경고 모달 출력 (잠금은 finally에서 해제)
                 pendingEditData = { en, ko };
                 document.getElementById('alert-modal').classList.remove('hidden');
                 return; 
             } else {
-                // 한글 뜻만 변경: Firestore 및 로컬 업데이트
-                await db.collection('words').doc(editingWordId).update({ ko: ko });
+                // 한글 뜻만 변경됨 (RTDB update)
+                await db.ref(`words/${editingWordId}`).update({ ko: ko });
                 oldWord.ko = ko;
                 renderWordList();
                 closeWordModal();
             }
         } else {
-            // 신규 단어 추가: Firestore에 등록 후 생성된 ID를 로컬에 반영
+            // 신규 단어 추가 (RTDB push)
+            const newRef = db.ref('words').push(); // 새 고유 키 생성
             const newWord = { en, ko, correct: 0, wrong: 0, createdAt: Date.now() };
-            const docRef = await db.collection('words').add(newWord);
-            words.push({ id: docRef.id, ...newWord });
+            await newRef.set(newWord);
+            
+            words.push({ id: newRef.key, ...newWord });
             renderWordList();
             closeWordModal();
         }
     } catch (error) {
         console.error("단어 저장 중 오류:", error);
-        alert("데이터 저장에 실패했습니다. 네트워크 상태나 권한을 확인해주세요.");
+        alert("데이터 저장에 실패했습니다. 네트워크 상태나 규칙을 확인해주세요.");
     } finally {
-        // 2. 오류가 났든 성공했든 함수가 끝날 때 반드시 잠금 해제
+        // 오류 유무와 상관없이 입력 필드 잠금 해제
         enInput.disabled = false; 
         koInput.disabled = false;
         saveBtn.disabled = false;
@@ -198,13 +204,12 @@ const confirmAlert = async () => {
     };
     
     try {
-        // 기존 문서에 데이터 덮어쓰기 (정답률 초기화 효과)
-        await db.collection('words').doc(editingWordId).update(updatedData);
+        // 단어 덮어쓰기 (정답률 초기화 효과)
+        await db.ref(`words/${editingWordId}`).update(updatedData);
         
-        // 로컬 상태 동기화
         words[wordIndex] = { ...words[wordIndex], ...updatedData };
-        
         renderWordList();
+        
         document.getElementById('alert-modal').classList.add('hidden');
         closeWordModal();
         pendingEditData = null;
@@ -247,7 +252,6 @@ const submitAnswer = () => {
     const word = currentTest.words[currentTest.currentIndex];
     const isCorrect = input === word.ko;
     
-    // 테스트 배열에 저장 (Firebase 업로드를 위해 wordId 명시)
     currentTest.answers.push({ 
         wordId: word.id, 
         en: word.en, 
@@ -277,28 +281,28 @@ const finishTest = async () => {
     };
 
     try {
-        // [Firebase] Batch Write: 테스트 히스토리 생성 + 여러 단어의 정답/오답수 일괄 업데이트
-        const batch = db.batch();
+        // [Firebase RTDB] Multipath Update (여러 경로 동시 업데이트 트랜잭션)
+        const updates = {};
         
-        // 1. History 문서 추가
-        const newHistoryRef = db.collection('history').doc();
-        batch.set(newHistoryRef, historyObj);
+        // 1. History 문서 새로 생성할 키값 추출
+        const newHistKey = db.ref('history').push().key;
+        updates[`/history/${newHistKey}`] = historyObj;
 
-        // 2. Words 문서 통계 증가
+        // 2. 출제된 단어들의 정답/오답 통계 1씩 증가시키기
         currentTest.answers.forEach(ans => {
-            const wordRef = db.collection('words').doc(ans.wordId);
-            batch.update(wordRef, {
-                correct: firebase.firestore.FieldValue.increment(ans.isCorrect ? 1 : 0),
-                wrong: firebase.firestore.FieldValue.increment(ans.isCorrect ? 0 : 1)
-            });
+            if (ans.isCorrect) {
+                updates[`/words/${ans.wordId}/correct`] = firebase.database.ServerValue.increment(1);
+            } else {
+                updates[`/words/${ans.wordId}/wrong`] = firebase.database.ServerValue.increment(1);
+            }
         });
 
-        // 일괄 전송
-        await batch.commit();
+        // 3. 서버에 일괄 적용
+        await db.ref().update(updates);
 
         // [Local] 로컬 상태 동기화 (새로고침 없이 화면 반영)
-        historyObj.id = newHistoryRef.id;
-        history.unshift(historyObj); // 맨 위에 추가
+        historyObj.id = newHistKey;
+        history.unshift(historyObj);
 
         currentTest.answers.forEach(ans => {
             const dbWord = words.find(w => w.id === ans.wordId);

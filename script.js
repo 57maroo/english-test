@@ -1,4 +1,4 @@
-// 1. Firebase 초기화 및 설정 (새로운 설정 반영)
+// 1. Firebase 초기화 및 설정
 const firebaseConfig = {
     apiKey: "AIzaSyAZvJPSOZ3PC7aowP9ueB_usCEzd3UxjwE",
     authDomain: "english-test-49e71.firebaseapp.com",
@@ -87,11 +87,14 @@ const renderWordList = () => {
 const deleteWord = async (id, event) => {
     event.stopPropagation();
     if(confirm('단어를 삭제하시겠습니까?')) {
-        // Firebase에서 삭제
-        await db.collection('words').doc(id).delete();
-        // 로컬 배열 업데이트
-        words = words.filter(w => w.id !== id);
-        renderWordList();
+        try {
+            await db.collection('words').doc(id).delete();
+            words = words.filter(w => w.id !== id);
+            renderWordList();
+        } catch (error) {
+            console.error("삭제 실패:", error);
+            alert("단어 삭제에 실패했습니다.");
+        }
     }
 };
 
@@ -115,6 +118,12 @@ const openWordModal = (id = null) => {
         enInput.value = '';
         koInput.value = '';
     }
+    
+    // 혹시 잠겨있을 수 있는 필드 활성화 초기화
+    enInput.disabled = false;
+    koInput.disabled = false;
+    saveBtn.disabled = false;
+
     document.getElementById('word-modal').classList.remove('hidden');
     enInput.focus();
 };
@@ -127,21 +136,25 @@ const closeWordModal = () => {
 const saveWord = async () => {
     const enInput = document.getElementById('modal-en');
     const koInput = document.getElementById('modal-ko');
+    const saveBtn = document.getElementById('modal-save-btn');
     const en = enInput.value.trim();
     const ko = koInput.value.trim();
     
     if (!en || !ko) return alert('영어와 한글 뜻을 모두 입력해주세요.');
     
-    // 중복 클릭 방지
-    enInput.disabled = true; koInput.disabled = true;
+    // 1. 중복 클릭 방지: 필드 및 버튼 잠금
+    enInput.disabled = true; 
+    koInput.disabled = true;
+    saveBtn.disabled = true;
 
     try {
         if (editingWordId) {
             const oldWord = words.find(w => w.id === editingWordId);
             if (oldWord.en !== en) {
-                // 영단어 변경: 경고창 출력
+                // 영단어 변경: 경고창 출력 (finally 블록에서 잠금이 해제됨)
                 pendingEditData = { en, ko };
                 document.getElementById('alert-modal').classList.remove('hidden');
+                return; 
             } else {
                 // 한글 뜻만 변경: Firestore 및 로컬 업데이트
                 await db.collection('words').doc(editingWordId).update({ ko: ko });
@@ -159,8 +172,12 @@ const saveWord = async () => {
         }
     } catch (error) {
         console.error("단어 저장 중 오류:", error);
+        alert("데이터 저장에 실패했습니다. 네트워크 상태나 권한을 확인해주세요.");
     } finally {
-        enInput.disabled = false; koInput.disabled = false;
+        // 2. 오류가 났든 성공했든 함수가 끝날 때 반드시 잠금 해제
+        enInput.disabled = false; 
+        koInput.disabled = false;
+        saveBtn.disabled = false;
     }
 };
 
@@ -168,8 +185,6 @@ const saveWord = async () => {
 const cancelAlert = () => {
     document.getElementById('alert-modal').classList.add('hidden');
     pendingEditData = null;
-    document.getElementById('modal-en').disabled = false; 
-    document.getElementById('modal-ko').disabled = false;
 };
 
 const confirmAlert = async () => {
@@ -182,18 +197,21 @@ const confirmAlert = async () => {
         createdAt: Date.now()
     };
     
-    // 기존 문서에 데이터 덮어쓰기 (정답률 초기화 효과)
-    await db.collection('words').doc(editingWordId).update(updatedData);
-    
-    // 로컬 상태 동기화
-    words[wordIndex] = { ...words[wordIndex], ...updatedData };
-    
-    renderWordList();
-    document.getElementById('alert-modal').classList.add('hidden');
-    closeWordModal();
-    pendingEditData = null;
-    document.getElementById('modal-en').disabled = false; 
-    document.getElementById('modal-ko').disabled = false;
+    try {
+        // 기존 문서에 데이터 덮어쓰기 (정답률 초기화 효과)
+        await db.collection('words').doc(editingWordId).update(updatedData);
+        
+        // 로컬 상태 동기화
+        words[wordIndex] = { ...words[wordIndex], ...updatedData };
+        
+        renderWordList();
+        document.getElementById('alert-modal').classList.add('hidden');
+        closeWordModal();
+        pendingEditData = null;
+    } catch (error) {
+        console.error("초기화 저장 실패:", error);
+        alert("단어 변경에 실패했습니다.");
+    }
 };
 
 /* ================= 테스트 로직 ================= */
